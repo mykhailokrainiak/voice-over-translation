@@ -191,6 +191,7 @@
 // @match           *://*.peervideo.club/*
 // @match           *://*.coursehunter.net/*
 // @match           *://*.coursetrain.net/*
+// @match           *://projector.datacamp.com/*
 // @exclude         file://*/*.mp4*
 // @exclude         file://*/*.webm*
 // @exclude         *://accounts.youtube.com/*
@@ -4086,6 +4087,7 @@ string() {
         ExtVideoService2["oraclelearn"] = "oraclelearn";
         ExtVideoService2["deeplearningai"] = "deeplearningai";
         ExtVideoService2["netacad"] = "netacad";
+        ExtVideoService2["datacamp"] = "datacamp";
       })(ExtVideoService || (ExtVideoService = {}));
       ({
         ...VideoService,
@@ -4689,6 +4691,13 @@ string() {
           url: "https://www.netacad.com/",
           match: /^(www\.)?netacad\.com/,
           selector: sharedSelectors.videoJsUniversal,
+          needExtraData: true
+        },
+        {
+          host: ExtVideoService.datacamp,
+          url: "https://projector.datacamp.com/",
+          match: /^projector\.datacamp\.com/,
+          selector: ".video-player.js-player",
           needExtraData: true
         },
         {
@@ -5751,6 +5760,61 @@ string() {
             return void 0;
           }
           return videoData.meta.url.replace("//my.mail.ru/", "");
+        }
+      }
+      class DataCampHelper extends VideoJSHelper {
+        SUBTITLE_SOURCE = "datacamp";
+        async getVideoData(videoId) {
+          const data = this.getVideoDataByPlayer(videoId);
+          if (data) {
+            const { url, duration, subtitles } = data;
+            try {
+              const videoDataInput = document.querySelector("input#videoData");
+              if (videoDataInput) {
+                const videoData = JSON.parse(videoDataInput.value);
+                const directUrl = videoData.plain_video_mp4_link || videoData.video_mp4_link;
+                if (directUrl) {
+                  const videoUrl = proxyMedia(new URL(directUrl));
+                  return {
+                    url: videoUrl,
+                    duration,
+                    subtitles,
+                    translationHelp: [
+                      {
+                        target: "video_file_url",
+                        targetUrl: videoUrl
+                      }
+                    ]
+                  };
+                }
+              }
+            } catch {
+            }
+            return {
+              url: proxyMedia(new URL(url)),
+              duration,
+              subtitles
+            };
+          }
+          try {
+            const videoDataInput = document.querySelector("input#videoData");
+            if (videoDataInput) {
+              const videoData = JSON.parse(videoDataInput.value);
+              const directUrl = videoData.plain_video_mp4_link || videoData.video_mp4_link;
+              if (directUrl) {
+                const videoEl = document.querySelector("video");
+                return {
+                  url: proxyMedia(new URL(directUrl)),
+                  duration: videoEl?.duration || 0
+                };
+              }
+            }
+          } catch {
+          }
+          return void 0;
+        }
+        async getVideoId(url) {
+          return url.pathname + url.search;
         }
       }
       class NetacadHelper extends VideoJSHelper {
@@ -7515,7 +7579,8 @@ string() {
         [ExtVideoService.kickstarter]: KickstarterHelper,
         [ExtVideoService.oraclelearn]: OracleLearnHelper,
         [ExtVideoService.deeplearningai]: DeeplearningAIHelper,
-        [ExtVideoService.netacad]: NetacadHelper
+        [ExtVideoService.netacad]: NetacadHelper,
+        [ExtVideoService.datacamp]: DataCampHelper
       };
       class VideoHelper {
         helpersData;
